@@ -1,16 +1,16 @@
 /******************************************************************
  * Name: Patrick Gonzalez
  * Date: April 24, 2026
- * Assignment: SDC330 Course Project - Class Implementation (Phase 1)
+ * Assignment: SDC330 Course Project - Database Implementation (Phase 2)
  *
  * Main application / controller class for the Personal Finance
  * Tracker. Owns the in-memory collections of accounts and
  * categories and drives the menu-based user interface. All output
  * formatting is delegated to the domain classes' toString methods
  * so this class does not have to know how any given object prints
- * itself. Database interaction is called through DatabaseManager,
- * which is a stub for Phase 1 and will be wired up in the Phase 2
- * (Database Implementation) submission.
+ * itself. Phase 2 wires in full database persistence: the app
+ * connects on startup, loads existing data, saves new records as
+ * they are created, and disconnects cleanly on exit.
  */
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -31,12 +31,19 @@ public class FinanceTracker {
     }
 
     public static void main(String[] args) {
-        System.out.println("Patrick Gonzalez - SDC330 Course Project (Phase 1)");
+        System.out.println("Patrick Gonzalez - SDC330 Course Project (Phase 2)");
         System.out.println("Personal Finance Tracker\n");
 
         FinanceTracker app = new FinanceTracker();
-        app.seedSampleData();
+        app.loadFromDatabase();
+        // Seed sample data only on a fresh (empty) database so the
+        // demo has something to show without duplicating on re-runs.
+        if (app.accounts.isEmpty()) {
+            app.seedSampleData();
+            app.saveAllToDatabase();
+        }
         app.run();
+        app.db.disconnect();
     }
 
     // Loads a small set of sample accounts, categories, and
@@ -149,6 +156,8 @@ public class FinanceTracker {
         System.out.print("Opening balance: ");
         double opening = Double.parseDouble(in.nextLine().trim());
         Account a = new Account(name, type, opening);
+        int id = db.saveAccount(a);
+        a.setAccountId(id);
         accounts.add(a);
         System.out.println("Added: " + a + "\n");
     }
@@ -173,6 +182,13 @@ public class FinanceTracker {
             t = new Expense(amount, LocalDate.now(), desc, cat);
         }
         a.addTransaction(t);
+        if (cat.getCategoryId() == 0) {
+            int catId = db.saveCategory(cat);
+            cat.setCategoryId(catId);
+        }
+        int txId = db.saveTransaction(a.getAccountId(), t);
+        t.setTransactionId(txId);
+        db.updateAccount(a);
         System.out.println("Added. New balance: $" + a.getBalance() + "\n");
     }
 
@@ -206,10 +222,28 @@ public class FinanceTracker {
         return c;
     }
 
+    // Connects to the database and loads all accounts (with their
+    // transactions) and categories into the in-memory collections.
     public void loadFromDatabase() {
-        // Phase 2 will populate accounts, categories, and
-        // transactions from the DatabaseManager on startup.
         db.connect();
-        accounts = new ArrayList<Account>(db.loadAccounts());
+        accounts    = new ArrayList<Account>(db.loadAccounts());
+        categories  = new ArrayList<Category>(db.loadCategories());
+    }
+
+    // Persists the current in-memory state to the database. Called
+    // once after the initial seed so data survives across runs.
+    public void saveAllToDatabase() {
+        for (Category c : categories) {
+            int id = db.saveCategory(c);
+            c.setCategoryId(id);
+        }
+        for (Account a : accounts) {
+            int accountId = db.saveAccount(a);
+            a.setAccountId(accountId);
+            for (Transaction t : a.getTransactionHistory()) {
+                int txId = db.saveTransaction(accountId, t);
+                t.setTransactionId(txId);
+            }
+        }
     }
 }
