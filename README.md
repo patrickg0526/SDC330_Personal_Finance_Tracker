@@ -56,8 +56,4 @@ The database file `patrickg_finance.db` is created automatically on first run an
 
 ## Link to Project
 
-[Personal Finance Tracker on GitHub](https://github.com/patrickg0526/SDC330_Personal_Finance_Tracker)
-
-## License
-
-This project is licensed under the MIT License.
+[GitHub Repository](https://github.com/patrickg0526/SDC330_Personal_Finance_Tracker)
